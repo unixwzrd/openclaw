@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import { createSubsystemLogger } from "../logging/subsystem.js";
-import { runGeminiEmbeddingBatches, type GeminiBatchRequest } from "./batch-gemini.js";
+import { type GeminiBatchRequest, runGeminiEmbeddingBatches } from "./batch-gemini.js";
 import {
   OPENAI_BATCH_ENDPOINT,
   type OpenAiBatchRequest,
@@ -15,13 +15,13 @@ import {
 import { type EmbeddingInput, hasNonTextEmbeddingParts } from "./embedding-inputs.js";
 import { buildGeminiEmbeddingRequest } from "./embeddings-gemini.js";
 import {
+  type MemoryChunk,
+  type MemoryFileEntry,
   buildMultimodalChunkForIndexing,
   chunkMarkdown,
   hashText,
   parseEmbedding,
   remapChunkLines,
-  type MemoryChunk,
-  type MemoryFileEntry,
 } from "./internal.js";
 import { MemoryManagerSyncOps } from "./manager-sync-ops.js";
 import type { SessionFileEntry } from "./session-files.js";
@@ -608,6 +608,9 @@ export abstract class MemoryManagerEmbeddingOps extends MemoryManagerSyncOps {
     const isLocal = this.provider?.id === "local";
     if (kind === "query") {
       return isLocal ? EMBEDDING_QUERY_TIMEOUT_LOCAL_MS : EMBEDDING_QUERY_TIMEOUT_REMOTE_MS;
+    }
+    if (!isLocal && Number.isFinite(this.batch.timeoutMs) && this.batch.timeoutMs > 0) {
+      return this.batch.timeoutMs;
     }
     return isLocal ? EMBEDDING_BATCH_TIMEOUT_LOCAL_MS : EMBEDDING_BATCH_TIMEOUT_REMOTE_MS;
   }
